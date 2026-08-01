@@ -76,7 +76,7 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 /* ============ main nav tabs ============ */
 .nav{
   position:absolute;left:0;right:0;z-index:50;
-  display:flex;align-items:flex-end;justify-content:flex-end;
+  display:flex;align-items:flex-end;justify-content:flex-start;
   gap:0;height:var(--navH);
   padding:0 calc(var(--pad) - 6px);
   top:calc(100dvh - var(--navH) - 95px);
@@ -105,9 +105,13 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 .tab.active{height:54px;background:var(--sheet);color:var(--ink);box-shadow:0 -6px 20px rgba(14,79,43,.14);z-index:6}
 .nav:not(.at-top) .tab.active{background:linear-gradient(180deg,#d9f0c8,#bfe4a9)}
 .tab-stub{
-  height:30px;width:46px;margin-right:-8px;transform:skewX(var(--skew));
+  height:30px;width:46px;margin-left:auto;margin-right:-8px;transform:skewX(var(--skew));
   border-radius:8px 8px 0 0;background:var(--g5);opacity:.9;align-self:flex-end;
 }
+/* tabs already flipped past move to the left edge, mirrored like turned pages */
+.tab.flip{order:-1;margin-left:0;margin-right:-14px;transform:skewX(var(--unskew))}
+.tab.flip span{transform:skewX(var(--skew))}
+.tab.flip:hover{height:52px}
 /* entrance of tabs */
 .nav .tab{opacity:0;animation:tabIn .7s cubic-bezier(.2,1.2,.4,1) forwards}
 .nav .tab:nth-child(2){animation-delay:.55s}
@@ -172,14 +176,9 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
   background:var(--sheet);
   filter:drop-shadow(0 -6px 22px rgba(14,79,43,.08)) drop-shadow(0 4px 10px rgba(14,79,43,.08));
   overflow:hidden;
-  clip-path:polygon(
-    0 26px,
-    30% 26px,
-    36% 0,
-    100% 0,
-    100% 100%,
-    0 100%
-  );
+}
+#p-about .sheet{
+  clip-path:polygon(0 26px, 30% 26px, 36% 0, 100% 0, 100% 100%, 0 100%);
 }
 .sheet-scroll{
   position:absolute;inset:0;
@@ -222,6 +221,13 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
   transition:transform .8s cubic-bezier(.65,0,.22,1);
   will-change:transform;
 }
+/* base content fades away when a folder sheet is open above it */
+#p-about .sheet-scroll{transition:opacity .45s ease}
+#p-about.s-lead .sheet-scroll,
+#p-about.s-team .sheet-scroll{opacity:0;pointer-events:none}
+#p-about .fold-lead .ss-scroll{transition:opacity .45s ease}
+#p-about.s-team .fold-lead .ss-scroll{opacity:0;pointer-events:none}
+
 /* open states of the О НАС folder */
 #p-about.s-lead .fold-lead{transform:none}
 #p-about.s-team .fold-lead{transform:none;transition-delay:0s}
@@ -691,7 +697,7 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
           <h2 class="rise" style="--d:0">Свяжитесь с нами</h2>
           <div class="c-item rise" style="--d:1">
             <div class="cl">ТЕЛЕФОН / WHATSAPP</div>
-            <div class="cv"><a href="tel:+77000000000">+7 700 000 00 00</a></div>
+            <div class="cv"><a href="tel:+77763937937">+7 776 393 79 37</a></div>
           </div>
           <div class="c-item rise" style="--d:2">
             <div class="cl">ПОЧТА</div>
@@ -699,14 +705,13 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
           </div>
           <div class="c-item rise" style="--d:3">
             <div class="cl">АДРЕС</div>
-            <div class="cv">г. Алматы</div>
-            <div class="cs">Работаем онлайн по всему Казахстану</div>
+            <div class="cv">Работаем онлайн по всему Казахстану</div>
           </div>
           <div class="c-item rise" style="--d:4">
             <div class="cl">РЕЖИМ РАБОТЫ</div>
             <div class="cv">Пн–Пт, 9:00–18:00</div>
           </div>
-          <a class="wa-btn rise" style="--d:5" href="https://wa.me/77000000000?text=Здравствуйте!%20Хочу%20получить%20консультацию%20по%20бухгалтерии" target="_blank" rel="noopener"><span>НАПИСАТЬ В WHATSAPP</span><span class="arr">⟶</span></a>
+          <a class="wa-btn rise" style="--d:5" href="https://wa.me/77763937937?text=Здравствуйте!%20Хочу%20получить%20консультацию%20по%20бухгалтерии" target="_blank" rel="noopener"><span>НАПИСАТЬ В WHATSAPP</span><span class="arr">⟶</span></a>
         </div>
       </div>
     </div>
@@ -740,6 +745,7 @@ function go(name){
   current = name;
   nav.classList.toggle('at-top', name !== 'home');
   tabs.forEach(t => t.classList.toggle('active', pageOf(name) === (t.dataset.page==='about'?'about':t.dataset.page)));
+  layoutNav(name);
 
   if (prevPage === nextPage){
     // same folder: just slide sheets (folder open / close)
@@ -777,6 +783,28 @@ function toggleFold(f){
   current = f;
   setFold(f);
   tabs.forEach(t => t.classList.toggle('active', t.dataset.page === 'about'));
+}
+
+const tabOrder = ['about','services','pricing','contacts'];
+function layoutNav(name){
+  if (window.matchMedia('(max-width:820px)').matches) return;
+  const activeIdx = tabOrder.indexOf(pageOf(name));   // -1 on home
+  const before = new Map(tabs.map(t => [t, t.getBoundingClientRect().left]));
+  tabs.forEach((t,i) => t.classList.toggle('flip', activeIdx > 0 && i < activeIdx));
+  const after = new Map(tabs.map(t => [t, t.getBoundingClientRect().left]));
+  tabs.forEach(t => {
+    const dx = before.get(t) - after.get(t);
+    const flipped = t.classList.contains('flip');
+    const endSkew = flipped ? 'skewX(24deg)' : 'skewX(-24deg)';
+    if (Math.abs(dx) < 1){ t.style.transition=''; t.style.transform=''; return; }
+    const startSkew = flipped ? 'skewX(-24deg)' : 'skewX(24deg)'; // was in the other group
+    t.style.transition = 'none';
+    t.style.transform = `translateX(${dx}px) ${startSkew}`;
+    void t.offsetWidth;
+    t.style.transition = 'transform .85s cubic-bezier(.65,0,.22,1), height .3s';
+    t.style.transform = endSkew;
+    setTimeout(()=>{ t.style.transition=''; t.style.transform=''; }, 900);
+  });
 }
 
 tabs.forEach(t => t.addEventListener('click', ()=> go(t.dataset.page)));
